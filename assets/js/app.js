@@ -16,141 +16,151 @@ const DOM = {
   applySkinButton: document.getElementById('apply_skin'),
   loading: document.getElementById('loading'),
   favicon: document.getElementById('favicon'),
+  placeholders: document.querySelectorAll('[data-placeholder]'),
+  skinViewerCanvas: document.getElementById('skin_viewer'),
+  toggleWalkButton: document.getElementById('toggle_animation'),
+  toggleRotationButton: document.getElementById('toggle_rotation'),
+  speedInput: document.getElementById('animation_speed'),
+  speedLabel: document.querySelector("label[for='animation_speed']"),
+  errorToast: document.getElementById('errorToast'),
 };
 
-const skinView = (skin) => {
+const icons = {
+  pause: '<i class="fa-solid fa-pause"></i>',
+  play: '<i class="fa-solid fa-play"></i>',
+};
+
+const createSkinViewer = (skin, cape) => {
   const skinViewer = new skinview3d.SkinViewer({
-    canvas: document.getElementById('skin_viewer'),
-    width: 300,
+    canvas: DOM.skinViewerCanvas,
+    width: 250,
     height: 400,
-    skin: skin,
+    skin,
   });
 
   skinViewer.animation = new skinview3d.WalkingAnimation();
+  if (cape) skinViewer.loadCape(cape);
 
-  const toggleWalkButton = document.getElementById('toggle_animation');
-  const toggleRotationButton = document.getElementById('toggle_rotation');
-  const speedInput = document.getElementById('animation_speed');
-  const speedLabel = document.querySelector("label[for='animation_speed']");
+  DOM.toggleWalkButton.innerHTML = icons.pause;
 
-  const icons = {
-    play: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6"><path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" /></svg>',
-    pause:
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6"><path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z" clip-rule="evenodd" /></svg>',
-  };
-
-  toggleWalkButton.innerHTML = icons.pause;
-
-  toggleWalkButton.addEventListener('click', () => {
+  DOM.toggleWalkButton.addEventListener('click', () => {
     skinViewer.animation.paused = !skinViewer.animation.paused;
-    toggleWalkButton.innerHTML = skinViewer.animation.paused
+    DOM.toggleWalkButton.innerHTML = skinViewer.animation.paused
       ? icons.play
       : icons.pause;
   });
 
-  toggleRotationButton.addEventListener('click', () => {
+  DOM.toggleRotationButton.addEventListener('click', () => {
     skinViewer.autoRotate = !skinViewer.autoRotate;
   });
 
-  speedInput.addEventListener('input', (e) => {
-    skinViewer.animation.speed = e.target.value;
-    speedLabel.innerText = `Animation speed: ${e.target.value}x`;
+  DOM.speedInput.addEventListener('input', (e) => {
+    const speed = e.target.value;
+    skinViewer.animation.speed = speed;
+    DOM.speedLabel.innerText = `Animation speed: ${speed}x`;
   });
+
+  return skinViewer;
 };
 
-const getID = async (username) => {
+const fetchJSON = async (url) => {
   try {
-    const response = await fetch(`${APIS.PLAYER_ID}${username}`);
-    const data = await response.json();
-    return data.success ? data.data.player.raw_id : null;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Network response was not ok');
+    return response.json();
   } catch (error) {
-    console.error(error);
+    console.error('Fetch error:', error);
     return null;
   }
 };
 
 const throwError = () => {
-  const toastLiveExample = document.getElementById('errorToast');
-  const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastLiveExample);
+  const toastBootstrap = bootstrap.Toast.getOrCreateInstance(DOM.errorToast);
   toastBootstrap.show();
 };
 
-const downloadSkin = async (e) => {
-  const url = e.target.dataset.url;
-  const hash = url.split('/').pop();
-  const imageSource = `${APIS.SKIN_RENDER}/skin/${hash}`;
-
+const downloadSkin = async (url, filename) => {
   try {
-    const image = await fetch(imageSource);
-    const imageBlog = await image.blob();
-    const imageURL = URL.createObjectURL(imageBlog);
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobURL = URL.createObjectURL(blob);
 
     const link = document.createElement('a');
-    link.href = imageURL;
-    link.download = `${DOM.playerName.innerText}.png`;
+    link.href = blobURL;
+    link.download = `${filename}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   } catch (error) {
-    console.error(error);
+    console.error('Download error:', error);
   }
 };
 
-const updateDOM = (data) => {
-  if (!data) return;
-
-  const { profileId, profileName, textures } = data;
-  const skinUrl = textures.SKIN.url;
-  const hash = skinUrl.split('/').pop();
+const updateDOM = ({ profileId, profileName, textures }) => {
+  const skinHash = textures.SKIN.url.split('/').pop();
+  const capeUrl = textures.CAPE?.url;
 
   DOM.playerName.innerText = profileName;
-  DOM.playerUUID.innerText = `${profileId.slice(0, 8)}-${profileId.slice(
-    8,
-    12
-  )}-${profileId.slice(12, 16)}-${profileId.slice(16, 20)}-${profileId.slice(
-    20
-  )}`;
+  DOM.playerUUID.innerText = profileId.match(/.{1,8}/g).join('-');
 
-  DOM.skinRender.src = `${APIS.SKIN_RENDER}/fullbody/${hash}`;
-  DOM.avatarRender.src = `${APIS.SKIN_RENDER}/face/${hash}`;
-  DOM.headRender.src = `${APIS.SKIN_RENDER}/headiso/${hash}`;
-  DOM.favicon.href = `${APIS.SKIN_RENDER}/face/${hash}`;
+  const skinPaths = {
+    skin: `${APIS.SKIN_RENDER}/fullbody/${skinHash}`,
+    face: `${APIS.SKIN_RENDER}/face/${skinHash}`,
+    head: `${APIS.SKIN_RENDER}/headiso/${skinHash}`,
+  };
 
-  DOM.downloadSkinButton.dataset.url = skinUrl;
-  DOM.applySkinButton.href = `https://www.minecraft.net/profile/skin/remote?url=${skinUrl}`;
+  DOM.skinRender.src = skinPaths.skin;
+  DOM.avatarRender.src = skinPaths.face;
+  DOM.headRender.src = skinPaths.head;
+  DOM.favicon.href = skinPaths.face;
 
-  skinView(skinUrl);
+  DOM.downloadSkinButton.dataset.url = textures.SKIN.url;
+  DOM.applySkinButton.href = `https://www.minecraft.net/profile/skin/remote?url=${textures.SKIN.url}`;
+
+  createSkinViewer(textures.SKIN.url, capeUrl);
 };
 
-const fetchData = async (username) => {
+const togglePlaceholders = (state) => {
+  DOM.placeholders.forEach((placeholder) => {
+    placeholder.dataset.placeholder = state;
+  });
+};
+
+const fetchPlayerData = async (username) => {
   if (username.length < 2 || username.length > 16) return;
 
-  try {
-    DOM.loading.style.display = 'block';
-    const id = await getID(username);
+  togglePlaceholders(true);
+  DOM.loading.style.display = 'block';
 
-    if (!id) {
+  try {
+    const playerId = await fetchJSON(`${APIS.PLAYER_ID}${username}`);
+    if (!playerId?.success) {
       throwError();
       return;
     }
 
-    const response = await fetch(`${APIS.PLAYER_PROFILE}${id}`);
-    const data = await response.json();
-
-    updateDOM(data.decoded);
+    const profileData = await fetchJSON(
+      `${APIS.PLAYER_PROFILE}${playerId.data.player.raw_id}`
+    );
+    if (profileData) updateDOM(profileData.decoded);
   } catch (error) {
-    console.error(error);
+    console.error('Player data fetch error:', error);
     throwError();
   } finally {
     DOM.loading.style.display = 'none';
+    togglePlaceholders(false);
   }
 };
 
-DOM.searchButton.addEventListener('click', async (e) => {
+DOM.searchButton.addEventListener('click', (e) => {
   e.preventDefault();
-  fetchData(DOM.username.value);
+  fetchPlayerData(DOM.username.value);
 });
 
-DOM.downloadSkinButton.addEventListener('click', downloadSkin);
+DOM.downloadSkinButton.addEventListener('click', (e) => {
+  const url = e.target.dataset.url;
+  const filename = DOM.playerName.innerText;
+  downloadSkin(url, filename);
+});
 
-fetchData('dieggoyz');
+fetchPlayerData('dieggoyz');

@@ -8,11 +8,11 @@ body {
 #toggle_animation,
 #toggle_rotation {
   line-height: 0;
+}
 
-  svg {
-    height: 16px;
-    width: 16px;
-  }
+.svg-inline--fa {
+  width: 14px;
+  height: 14px;
 }
 
 .navbar {
@@ -55,8 +55,17 @@ body {
   }
 }
 
-.icon {
-  --size: 18px;
-  width: var(--size);
-  height: var(--size);
+[data-placeholder='true'] {
+  animation: glow 2s ease-in-out infinite;
+  border-radius: 4px;
+  background-color: currentColor;
+  cursor: wait;
+  opacity: 50%;
+  width: fit-content;
+}
+
+@keyframes glow {
+  50% {
+    opacity: 0.2;
+  }
 }

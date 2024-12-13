@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap");
 body {
   font-family: "Geist", -apple-system, sans-serif;
 }
@@ -8,11 +8,10 @@ body {
 #toggle_rotation {
   line-height: 0;
 }
-#search svg,
-#toggle_animation svg,
-#toggle_rotation svg {
-  height: 16px;
-  width: 16px;
+
+.svg-inline--fa {
+  width: 14px;
+  height: 14px;
 }
 
 .navbar {
@@ -52,8 +51,18 @@ body {
   border-radius: 32px;
 }
 
-.icon {
-  --size: 18px;
-  width: var(--size);
-  height: var(--size);
+[data-placeholder=true] {
+  animation: glow 2s ease-in-out infinite;
+  border-radius: 4px;
+  background-color: currentColor;
+  cursor: wait;
+  opacity: 50%;
+  width: -moz-fit-content;
+  width: fit-content;
+}
+
+@keyframes glow {
+  50% {
+    opacity: 0.2;
+  }
 }
